@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PULSO — Registro de participante</title>
+  <link rel="stylesheet" href="/css/pulso.css">
+</head>
+<body>
+  <header class="pulso-header">
+    <a class="brand" href="/"><span class="dot"></span>PULSO</a>
+    <nav><a href="/">Inicio</a></nav>
+  </header>
+
+  <main class="container">
+    <h1>Identidad PULSO</h1>
+    <p class="muted">
+      Completá tus datos para generar tu Perfil de salud y tu Código PULSO.
+      Esta información es declarada por vos; no reemplaza una consulta médica.
+    </p>
+
+    <div id="form-alert"></div>
+
+    <form id="registro-form" class="card" novalidate>
+      <fieldset>
+        <legend>Datos personales</legend>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="first_name">Nombre *</label>
+            <input type="text" id="first_name" name="first_name" required autocomplete="given-name">
+          </div>
+          <div class="field">
+            <label for="last_name">Apellido *</label>
+            <input type="text" id="last_name" name="last_name" required autocomplete="family-name">
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="dni">DNI *</label>
+            <input type="text" id="dni" name="dni" required inputmode="numeric" placeholder="Ej: 38456123">
+          </div>
+          <div class="field">
+            <label for="age">Edad *</label>
+            <input type="number" id="age" name="age" required min="0" max="120">
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Perfil de salud (declarado por vos)</legend>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="blood_group">Grupo sanguíneo</label>
+            <select id="blood_group" name="blood_group">
+              <option value="">No lo sé</option>
+              <option>O</option>
+              <option>A</option>
+              <option>B</option>
+              <option>AB</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="rh_factor">Factor Rh</label>
+            <select id="rh_factor" name="rh_factor">
+              <option value="">No lo sé</option>
+              <option value="+">Positivo (+)</option>
+              <option value="-">Negativo (-)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="allergies">Alergias</label>
+          <textarea id="allergies" name="allergies" placeholder="Ej: Penicilina. Dejar en blanco si no tenés."></textarea>
+        </div>
+
+        <div class="field">
+          <label for="medical_conditions">Enfermedades o antecedentes relevantes</label>
+          <textarea id="medical_conditions" name="medical_conditions" placeholder="Ej: Asma, epilepsia, diabetes..."></textarea>
+        </div>
+
+        <div class="field">
+          <label for="medications">Medicación</label>
+          <textarea id="medications" name="medications" placeholder="Ej: Salbutamol (rescate)"></textarea>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Contacto de emergencia</legend>
+
+        <div class="field">
+          <label for="emergency_contact_name">Nombre del contacto *</label>
+          <input type="text" id="emergency_contact_name" name="emergency_contact_name" required>
+        </div>
+
+        <div class="field">
+          <label for="emergency_contact_phone">Teléfono del contacto *</label>
+          <input type="tel" id="emergency_contact_phone" name="emergency_contact_phone" required placeholder="Ej: +54 9 11 1234-5678">
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Declaración jurada</legend>
+        <div class="checkbox-row">
+          <input type="checkbox" id="declaration_accepted" name="declaration_accepted" required>
+          <label id="declaration-text" for="declaration_accepted">Cargando declaración…</label>
+        </div>
+      </fieldset>
+
+      <button type="submit" class="btn btn-primary" id="submit-btn">Generar mi Identidad PULSO</button>
+    </form>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/registro.js"></script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PULSO — Buscar participante</title>
+  <link rel="stylesheet" href="/css/pulso.css">
+</head>
+<body>
+  <header class="pulso-header">
+    <a class="brand" href="/"><span class="dot"></span>PULSO</a>
+    <nav><a href="/">Inicio</a></nav>
+  </header>
+
+  <main class="container">
+    <h1>Buscar participante</h1>
+    <p class="muted">Escaneá el QR o ingresá el DNI o Código PULSO.</p>
+
+    <div class="search-methods">
+      <button type="button" class="btn btn-secondary" id="scan-btn">Escanear QR</button>
+
+      <div id="scan-area" class="card" hidden>
+        <video id="scan-video" playsinline muted style="width:100%; border-radius:8px;"></video>
+        <button type="button" class="btn btn-outline mt-16" id="scan-stop-btn">Cancelar escaneo</button>
+      </div>
+
+      <form id="search-form" class="card">
+        <div class="field">
+          <label for="search-input">DNI o Código PULSO</label>
+          <input type="text" id="search-input" name="search" placeholder="Ej: 38456123 o PU-8F42K">
+        </div>
+        <button type="submit" class="btn btn-primary">Buscar</button>
+      </form>
+    </div>
+
+    <div id="result" class="mt-16"></div>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/rescueView.js"></script>
+  <script src="/js/rescatista.js"></script>
+</body>
+</html>
