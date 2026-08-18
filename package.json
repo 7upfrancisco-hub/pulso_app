@@ -10,7 +10,7 @@
     "seed": "node src/db/seed.js"
   },
   "engines": {
-    "node": ">=22.5.0"
+    "node": "22.x"
   },
   "keywords": [
     "emergency",
