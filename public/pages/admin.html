@@ -9,7 +9,7 @@
 <body>
   <header class="pulso-header">
     <a class="brand" href="/"><span class="dot"></span>PULSO</a>
-    <nav><a href="/">Inicio</a></nav>
+    <nav><a href="#" id="logout-link">Cerrar sesión</a></nav>
   </header>
 
   <main class="container container--wide">
@@ -41,9 +41,43 @@
         </tbody>
       </table>
     </div>
+
+    <h2 class="mt-16">Crear cuenta de Rescatista o Admin</h2>
+    <p class="muted">
+      Rescatista y Admin no se auto-registran: la cuenta la das de alta vos acá.
+      Después esa persona ingresa con su DNI y esta contraseña.
+    </p>
+
+    <div id="user-form-alert"></div>
+
+    <form id="user-form" class="card">
+      <div class="field-row">
+        <div class="field">
+          <label for="new-dni">DNI</label>
+          <input type="text" id="new-dni" name="dni" required inputmode="numeric">
+        </div>
+        <div class="field">
+          <label for="new-role">Rol</label>
+          <select id="new-role" name="role" required>
+            <option value="rescatista">Rescatista</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="new-email">Email</label>
+        <input type="email" id="new-email" name="email" required>
+      </div>
+      <div class="field">
+        <label for="new-password">Contraseña</label>
+        <input type="password" id="new-password" name="password" required minlength="6">
+      </div>
+      <button type="submit" class="btn btn-primary">Crear cuenta</button>
+    </form>
   </main>
 
   <script src="/js/api.js"></script>
+  <script src="/js/logout.js"></script>
   <script src="/js/admin.js"></script>
 </body>
 </html>

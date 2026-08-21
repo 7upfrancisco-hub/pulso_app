@@ -160,18 +160,34 @@ Vercel intente correrlas en cada cold start).
 
 ## Cómo probar cada flujo
 
-1. `npm install && cp .env.example .env` → completar `.env` → `npm run migrate && npm run seed && npm start`
-2. Abrir `http://localhost:3000` → **Participante** → completar el
-   formulario → tildar la declaración jurada → enviar. Redirige a
-   `/perfil/:id` con el Código PULSO y el QR generados.
-3. Intentar registrar de nuevo el mismo DNI → debe rechazar con 409.
-4. Desde `/rescatista`, buscar por el DNI o el Código PULSO de alguno de
-   los participantes sembrados (ver `src/db/seed.js`, ej. DNI `38456123` /
-   Código `PU-...`) → debe mostrar la vista de rescate (sin el DNI).
-5. Abrir en el navegador la URL del QR (la que devuelve
-   `GET /api/participants/:id/qr`, con forma `/r/:id`) → misma vista de
-   rescate, acceso auditado como `QR`.
-6. Abrir `/admin` → ver métricas y tabla; probar el buscador.
+1. `npm install && cp .env.example .env` → completar `.env` (incluido
+   `SESSION_SECRET`) → `npm run migrate`.
+2. Crear el primer admin (una sola vez): `ADMIN_DNI=... ADMIN_EMAIL=...
+   ADMIN_PASSWORD=... npm run seed:admin`.
+3. `npm run seed && npm start` (los participantes de prueba sembrados por
+   `seed.js` no tienen cuenta de login propia — sirven para probar la
+   búsqueda del rescatista, no para loguearse como ellos).
+4. Abrir `http://localhost:3000` → **"Registrate como participante"** →
+   completar el formulario (incluye email + contraseña) → tildar la
+   declaración jurada → enviar. Redirige logueado a `/perfil/:id` con el
+   Código PULSO y el QR generados.
+5. Cerrar sesión, volver a `http://localhost:3000` (ahora es la pantalla
+   de login) e ingresar con el **DNI** y la contraseña recién creados →
+   debe volver al mismo perfil.
+6. Intentar registrar de nuevo el mismo DNI → debe rechazar con 409.
+7. Loguearse con el admin del paso 2, entrar a `/admin` y crear una cuenta
+   de **Rescatista** (DNI + email + contraseña).
+8. Cerrar sesión, loguearse con esa cuenta de rescatista → entra directo a
+   `/rescatista`. Buscar por el DNI o el Código PULSO de alguno de los
+   participantes sembrados (ej. DNI `38456123` / Código `PU-...`) → debe
+   mostrar la vista de rescate (sin el DNI).
+9. Sin sesión iniciada (ventana de incógnito), abrir en el navegador la
+   URL del QR (`/r/:id`, la que devuelve `GET /api/participants/:id/qr`)
+   → misma vista de rescate, **sin pedir login** (a propósito: cualquiera
+   que encuentre al participante tiene que poder verla), acceso auditado
+   como `QR`.
+10. Con el admin, entrar a `/admin` → ver métricas y tabla; probar el
+    buscador.
 
 ## Variables de entorno
 
@@ -183,6 +199,7 @@ Vercel intente correrlas en cada cold start).
 | `SUPABASE_SERVICE_KEY` | Service role key (Project Settings → API). Solo server-side, nunca en el frontend | —                    |
 | `DATABASE_URL`         | Connection string Postgres directa, usada solo por `npm run migrate` (Project Settings → Database → Connection pooler) | — |
 | `PUBLIC_BASE_URL`      | Base usada para armar la URL que codifica el QR                          | `http://localhost:<PORT>`   |
+| `SESSION_SECRET`       | Firma la cookie de sesión (login)                                        | valor de desarrollo fijo (cambiar en producción) |
 
 ## Deploy (Vercel + Supabase)
 
@@ -199,9 +216,13 @@ Vercel intente correrlas en cada cold start).
    (función serverless en `api/index.js` + rewrites). No hace falta tocar
    el build command.
 5. En el proyecto de Vercel, cargar las variables de entorno
-   (`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `PUBLIC_BASE_URL` con el
-   dominio que asigne Vercel; `DATABASE_URL` no hace falta en Vercel, solo
-   se usa localmente para migrar) y hacer deploy.
+   (`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SESSION_SECRET`,
+   `PUBLIC_BASE_URL` con el dominio que asigne Vercel; `DATABASE_URL` no
+   hace falta en Vercel, solo se usa localmente para migrar) y hacer
+   deploy.
+6. Correr `npm run seed:admin` localmente una vez más, apuntando `.env` al
+   proyecto de Supabase de producción, para crear el primer admin (sin
+   esto nadie puede entrar a `/admin` a dar de alta al resto).
 
 `node:sqlite` y el archivo `data/*.sqlite` de la etapa anterior quedaron
 reemplazados por Supabase; ya no hace falta persistir un archivo en disco.
@@ -224,10 +245,19 @@ reemplazados por Supabase; ya no hace falta persistir un archivo en disco.
   contacto de emergencia. Grupo sanguíneo, Rh, alergias, antecedentes y
   medicación quedan opcionales — "no declarado" también es información
   válida en este modelo.
-- **Roles**: no hay autenticación todavía. Las tres pantallas (Participante,
-  Rescatista, Admin) son de acceso libre para poder probar el flujo
-  completo; `access_logs` ya deja la auditoría preparada para cuando se
-  agregue login real.
+- **Roles y login (Etapa 5)**: cada cuenta vive en Supabase Auth (email +
+  contraseña) y se vincula a un DNI y un rol (`participante` / `rescatista`
+  / `admin`) en la tabla `profiles`. El login del día a día es con **DNI +
+  contraseña** (el email solo se usa para crear la cuenta); el backend
+  resuelve DNI → email puertas adentro. Participante se auto-registra;
+  Rescatista y Admin los crea un admin ya existente desde `/admin` (no hay
+  auto-registro para esos roles, porque implican ver datos de salud de
+  cualquiera). La sesión dura 60 días para no interrumpir a un rescatista
+  en medio de una emergencia. El link del QR (`/r/:id`) sigue **sin login**
+  a propósito: tenerlo en la mano ya prueba que quien lo escanea encontró
+  al participante; la búsqueda manual en `/rescatista` (DNI/Código PULSO)
+  sí exige login, porque ese camino no prueba presencia física.
+  `access_logs` sigue auditando cada acceso a una ficha de rescate.
 - **Base de datos**: se migró de SQLite (`node:sqlite`, archivo local) a
   Postgres vía Supabase, porque Vercel es serverless y no tiene filesystem
   persistente para un archivo `.sqlite`. Los modelos pasaron de sync a

@@ -1,10 +1,12 @@
 // Dashboard de ADMIN: metricas + tabla con busqueda por nombre/DNI/Codigo
-// PULSO. Sin autenticacion todavia (vista de prueba del MVP).
+// PULSO, y alta de cuentas de Rescatista/Admin.
 
 (function () {
   const statsGrid = document.getElementById('stats-grid');
   const searchInput = document.getElementById('search-input');
   const tableBody = document.getElementById('table-body');
+  const userForm = document.getElementById('user-form');
+  const userFormAlert = document.getElementById('user-form-alert');
   let searchTimer = null;
 
   function escapeHtml(value) {
@@ -81,6 +83,27 @@
   searchInput.addEventListener('input', () => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => loadTable(searchInput.value.trim()), 250);
+  });
+
+  userForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    userFormAlert.innerHTML = '';
+
+    const formData = new FormData(userForm);
+    const payload = {
+      dni: formData.get('dni').trim(),
+      role: formData.get('role'),
+      email: formData.get('email').trim(),
+      password: formData.get('password'),
+    };
+
+    try {
+      await PulsoApi.post('/api/admin/users', payload);
+      userFormAlert.innerHTML = '<div class="alert alert-info">Cuenta creada.</div>';
+      userForm.reset();
+    } catch (err) {
+      userFormAlert.innerHTML = `<div class="alert alert-error">${err.message || 'No se pudo crear la cuenta.'}</div>`;
+    }
   });
 
   loadStats();

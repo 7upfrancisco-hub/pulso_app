@@ -15,6 +15,9 @@ const env = {
   databaseUrl: process.env.DATABASE_URL,
   // URL publica usada para armar el link que codifica el QR (/r/:id).
   publicBaseUrl: process.env.PUBLIC_BASE_URL || `http://localhost:${port}`,
+  // Clave para firmar la cookie de sesion (login). Nunca commitear un valor
+  // real; en desarrollo cae a un default fijo para no frenar `npm start`.
+  sessionSecret: process.env.SESSION_SECRET || 'dev-session-secret-no-usar-en-produccion',
 };
 
 module.exports = env;

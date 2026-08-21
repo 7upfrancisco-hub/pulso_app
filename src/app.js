@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 
 const healthRoutes = require('./routes/health.routes');
+const authRoutes = require('./routes/auth.routes');
 const participantRoutes = require('./routes/participant.routes');
 const adminRoutes = require('./routes/admin.routes');
 const declarationRoutes = require('./routes/declaration.routes');
@@ -16,6 +17,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.use('/health', healthRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/participants', participantRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/declaration', declarationRoutes);

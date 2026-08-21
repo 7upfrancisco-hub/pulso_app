@@ -61,26 +61,42 @@ una aprobada antes de seguir:
 2. **Etapa 2 — API de participantes genérica:** CRUD básico de
    participantes (crear, leer, actualizar, borrar), pensado para un evento
    deportivo cualquiera, sin el modelo PULSO todavía.
-3. **Etapa 3 (la actual) — Pivot a PULSO, MVP completo de punta a punta:**
-   se reusó toda la base de las etapas anteriores (nada se reescribió de
-   cero) y se agregó todo lo específico de PULSO: Código PULSO, declaración
-   jurada, QR, búsqueda por DNI/código/QR, vista de rescate, dashboard de
-   admin, y datos de prueba.
+3. **Etapa 3 — Pivot a PULSO, MVP completo de punta a punta:** se reusó
+   toda la base de las etapas anteriores (nada se reescribió de cero) y se
+   agregó todo lo específico de PULSO: Código PULSO, declaración jurada,
+   QR, búsqueda por DNI/código/QR, vista de rescate, dashboard de admin, y
+   datos de prueba.
+4. **Etapa 4 — Deploy en Vercel:** para poder publicar el proyecto en
+   internet hubo que migrar la base de datos de SQLite (un archivo local) a
+   **Supabase** (Postgres en la nube), porque Vercel no tiene disco
+   persistente. Deploy terminado y confirmado en producción. Ver sección 16.
+5. **Etapa 5 (la actual) — Login real por rol:** hasta acá cualquiera podía
+   entrar a cualquier pantalla eligiendo un rol libremente. Se agregó login
+   de verdad (DNI + contraseña) con tres roles reales (participante,
+   rescatista, admin) que determinan a qué pantalla se entra, manteniendo
+   sin login el link del QR (para que cualquiera que encuentre al
+   participante pueda verlo en una emergencia). Ver sección 17 para el
+   detalle.
 
 ---
 
 ## 3. Tecnología usada
 
 - **Node.js + Express**: el servidor y las rutas de la API.
-- **SQLite**, a través del módulo `node:sqlite` que ya viene incluido en
-  Node (no una librería externa). Se eligió así porque la librería más
-  común (`better-sqlite3`) necesita compilar código en C++ y esta máquina
-  no tiene las herramientas de compilación instaladas (Visual Studio Build
-  Tools). El módulo nativo de Node resuelve lo mismo sin ese problema.
+- **Postgres, a través de Supabase** (desde la Etapa 4). Antes era SQLite
+  vía el módulo `node:sqlite`; se migró porque Vercel (donde se despliega
+  el proyecto) es "serverless" y no tiene disco persistente para guardar un
+  archivo `.sqlite`. El backend le habla a Supabase con la librería
+  `@supabase/supabase-js` (HTTP, no una conexión de base de datos
+  tradicional — más apto para funciones serverless que se prenden y
+  apagan todo el tiempo).
 - **`qrcode`** (librería chica, sin compilación) para generar la imagen del
   QR.
 - **HTML + CSS + JavaScript puro** en el frontend. Sin React, Vue, Angular,
   Bootstrap ni TypeScript — tal como pidió el usuario desde el inicio.
+- **Vercel** para publicar el proyecto en internet, conectado a GitHub: cada
+  vez que se sube un cambio a la rama principal, Vercel lo redespliega
+  solo.
 
 No se usa ningún framework de frontend ni build tool: las páginas son
 archivos `.html` con `<script>` normales, y el JS del navegador llama a la
@@ -104,9 +120,16 @@ Y aparte:
   cliente. Estas son las pantallas que ve la gente.
 - `src/db/migrations/` → cada cambio a la estructura de la base de datos
   queda guardado como un archivo numerado (`0001_...`, `0002_...`, etc.).
-  Cuando el servidor arranca, aplica automáticamente los que falten. Esto
-  permite que la base de datos "evolucione" de forma prolija y ordenada, en
-  vez de editarla a mano.
+  Desde la Etapa 4 estos archivos **ya no se aplican solos al arrancar el
+  servidor** (antes sí): ahora se corren a mano con `npm run migrate`
+  (o pegando el SQL directo en el editor de Supabase). Se cambió así para
+  que Vercel no intente aplicar cambios a la base cada vez que arranca una
+  función, que podría pasar muchas veces por minuto.
+- `api/index.js` y `vercel.json` (raíz del proyecto) → son la parte que
+  entiende Vercel. `api/index.js` simplemente reexporta la misma app de
+  Express (`src/app.js`), y `vercel.json` le dice a Vercel que todas las
+  URLs vayan a esa función y que incluya la carpeta `public/` en el
+  paquete que se sube.
 - `src/db/seed.js` → un script que llena la base con participantes de
   prueba, para no tener que cargarlos a mano cada vez.
 - `src/config/` → un solo lugar para las variables de configuración (puerto,
@@ -260,8 +283,10 @@ prueba son:
 ```bash
 npm install              # instala las dependencias
 cp .env.example .env      # crea el archivo de configuración local
-npm run seed               # carga los participantes de prueba
-npm start                  # levanta el servidor
+# completar en .env: SUPABASE_URL y SUPABASE_SERVICE_KEY (ver sección 16)
+npm run migrate            # crea las tablas en Supabase (una sola vez)
+npm run seed                # carga los participantes de prueba
+npm start                    # levanta el servidor
 ```
 
 Después abrís `http://localhost:3000` en el navegador. Desde ahí hay
@@ -273,11 +298,16 @@ Para desarrollar con reinicio automático al guardar cambios: `npm run dev`.
 
 ## 14. Decisiones técnicas que vale la pena recordar
 
-- **Por qué `node:sqlite` y no otra librería de SQLite**: para evitar
+- **Por qué se usó `node:sqlite` al principio (Etapas 1-3)**: para evitar
   depender de herramientas de compilación que esta máquina no tiene
-  instaladas. Si en algún momento se cambia de máquina o se sube a un
-  servidor, esto sigue funcionando igual porque no depende de compilar
-  nada.
+  instaladas. Funcionó bien mientras el proyecto corría solo en esta
+  máquina.
+- **Por qué se migró a Supabase en la Etapa 4**: al querer publicar el
+  proyecto en Vercel, apareció el límite real de SQLite: Vercel no tiene
+  disco persistente (cada vez que se "despierta" una función arranca de
+  cero), así que un archivo `.sqlite` local no sirve para producción.
+  Supabase da una base Postgres real, accesible por internet, sin tener
+  que administrar un servidor de base de datos aparte.
 - **Por qué el QR usa el mismo UUID interno y no un "token" aparte**: el
   UUID ya es aleatorio y no se puede adivinar, así que agregar un token
   extra hubiera sido complejidad de más para este MVP. Si más adelante se
@@ -306,8 +336,6 @@ Para desarrollar con reinicio automático al guardar cambios: `npm run dev`.
 
 Esto es lo que el usuario pidió explícitamente **no** tocar todavía:
 
-- Login / autenticación real para los 3 roles (hoy cualquiera puede entrar
-  a cualquier pantalla).
 - Gestión de eventos y organizaciones (hoy PULSO no distingue "a qué
   evento" pertenece cada participante).
 - Pagos.
@@ -317,3 +345,171 @@ Esto es lo que el usuario pidió explícitamente **no** tocar todavía:
 - Que el participante pueda editar su propio perfil desde su pantalla (hoy
   la API lo permite por atrás, pero no hay un botón "editar" en la pantalla
   de perfil).
+
+---
+
+## 16. Estado del deploy (Vercel + Supabase) — Etapa 4
+
+**Recursos creados:**
+
+| Cosa | Dónde |
+|---|---|
+| Proyecto Supabase | https://supabase.com/dashboard/project/ktkcanwkzghkcusrwswv |
+| Repo GitHub | https://github.com/7upfrancisco-hub/pulso_app (rama `main`) |
+| Equipo Vercel | "ffff", proyecto `pulso-app` |
+
+Las credenciales reales (`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`) están en
+el archivo `.env` local (no se sube a git) y cargadas como variables de
+entorno en el proyecto de Vercel. No están repetidas en este documento a
+propósito, para no duplicar un secreto en más lugares de los necesarios.
+
+**Lo que ya está hecho (confirmado, no solo "debería andar"):**
+- Código migrado de SQLite a Supabase (modelos y controllers async).
+- `api/index.js` + `vercel.json` para que Vercel sirva la app de Express
+  como función serverless.
+- Repo inicializado, primer commit, pusheado a GitHub.
+- **Tablas creadas en Supabase** (`participants`, `access_logs`,
+  `schema_migrations`) — confirmado corriendo una query real, no solo
+  mirando la pantalla del SQL Editor.
+- **`npm run seed` corrido contra Supabase con éxito**: los 4 participantes
+  de prueba (Marina, Lucas, Valentina, Sofía) ya están cargados en la base
+  de la nube, con sus Códigos PULSO generados.
+- **Probado localmente de punta a punta contra Supabase** (`npm start`
+  apuntando a `.env` con las credenciales reales): `/health` responde
+  `db: connected`, la búsqueda de rescate por DNI devuelve los datos
+  correctos, y `/api/admin/stats` devuelve las métricas esperas (4
+  participantes, 2 con alergias, 1 con medicación, 1 con antecedentes).
+  Es decir: **el backend contra Supabase funciona end-to-end en local.**
+  Lo único que falta es el deploy en sí.
+
+**Deploy terminado y confirmado en producción** (2026-08-19/20): el
+proyecto quedó importado en Vercel con dominio
+`https://pulso-app-gamma.vercel.app`, las variables de entorno cargadas
+con los nombres correctos (en inglés: `PORT`, `NODE_ENV`, `SUPABASE_URL`,
+`SUPABASE_SERVICE_KEY`, `PUBLIC_BASE_URL`), y `/health` responde
+`db: connected` en producción. En el camino aparecieron y se resolvieron
+dos problemas reales (no solo de config a mano, sino bugs/errores
+concretos):
+- La versión de Node que usaba Vercel no coincidía con la esperada
+  (`engines.node` tenía un rango `>=22.5.0` que Vercel interpretaba
+  distinto a npm/nvm local) → se fijó a `"22.x"` exacto.
+- El valor cargado de `SUPABASE_URL` en Vercel apuntaba a
+  `ktkcanwkzghkcusrwswv.supabase.com` (dominio del dashboard) en vez de
+  `ktkcanwkzghkcusrwswv.supabase.co` (dominio real del proyecto) → typo
+  de un caracter que rompía toda la conexión con un error genérico
+  (`TypeError: fetch failed`). Para encontrarlo se agregó diagnóstico
+  extra a `/health` (cadena de causas + host configurado, sin exponer la
+  key) — queda en el código, es útil para diagnosticar futuras fallas de
+  conexión sin tener que adivinar.
+
+Los 6 flujos de la sección "Cómo probar cada flujo" ya se probaron a mano
+contra la URL pública de Vercel (registro, DNI duplicado rechazado,
+búsqueda por DNI/Código en `/rescatista`, panel `/admin`). El escaneo de
+QR *desde el navegador* (botón "Escanear QR") no funciona en desktop ni
+se probó a fondo en celular porque quedó reemplazado por el enfoque de la
+Etapa 5 (ver sección 17): abrir el link del QR con la cámara nativa del
+teléfono no depende de esa función del navegador y ya sirve como camino
+principal.
+
+---
+
+## 17. Login real por rol — Etapa 5
+
+**Por qué esta etapa**: hasta la Etapa 4, las tres pantallas (Participante,
+Rescatista, Admin) eran de acceso libre — cualquiera podía entrar a
+cualquiera con solo clickear un link en la home. El usuario pidió
+reemplazar eso por login de verdad, con una condición clave: el link del
+QR (la forma en que un rescatista real encuentra a un participante) tenía
+que seguir funcionando **sin login**, porque en una emergencia real puede
+no haber ningún Rescatista registrado cerca — cualquier persona que
+encuentre al participante tiene que poder abrir el QR con la cámara de su
+celular y ver la ficha al instante.
+
+**Cómo quedó resuelta esa tensión** (login sí, pero sin trabar la
+emergencia): el link del QR (`/r/:id`) ya era, desde la Etapa 3, una URL
+con un UUID no adivinable — tener el QR físico (pulsera/cartel) en la mano
+YA prueba que quien lo escanea encontró al participante. Por eso:
+- Abrir el QR (`token=` en `/api/participants/rescue`) → **sigue sin
+  login**, cualquiera puede verlo.
+- La búsqueda manual en `/rescatista` (por DNI o Código PULSO a mano,
+  `dni=`/`pulso_code=` en el mismo endpoint) → **sí exige login de
+  Rescatista o Admin**, porque ese camino no prueba presencia física y es
+  el que se presta a "espiar" datos de salud de cualquiera.
+
+**Modelo de cuentas:**
+- Cada cuenta vive en **Supabase Auth** (email + contraseña) — no se
+  reinventó el guardado de contraseñas ni las sesiones a mano.
+- Tabla nueva `profiles` (migración `0004_profiles.sql`, con Row Level
+  Security activado) vincula esa cuenta a un **DNI** (único) y un
+  **rol** (`participante` / `rescatista` / `admin`); si es participante,
+  también a su fila en `participants`.
+- **El login del día a día es con DNI + contraseña, no con email.** El
+  email solo se pide una vez, al crear la cuenta, para que Supabase Auth
+  tenga con qué autenticar puertas adentro — el usuario nunca lo vuelve a
+  ver ni escribir. El backend resuelve DNI → email antes de validar la
+  contraseña.
+- **Participante**: se auto-registra en `/registro` (ahora pide también
+  email + contraseña). Al enviar, se crea en este orden: la ficha de
+  salud (`participants`), la cuenta (Supabase Auth), el perfil
+  (`profiles`) — y si un paso falla, se deshacen los anteriores (no debe
+  quedar una ficha sin cuenta ni una cuenta sin ficha).
+- **Rescatista y Admin**: **no hay auto-registro**. Las crea un Admin ya
+  existente desde un formulario nuevo en `/admin` ("Crear cuenta de
+  Rescatista o Admin"), porque implican acceso a datos de salud de
+  cualquier participante — no es algo que deba poder pedirse solo.
+- **Bootstrap del primer admin**: como nadie puede entrar a `/admin` sin
+  ya ser admin, hay un script aparte para crear el primero a mano:
+  `ADMIN_DNI=... ADMIN_EMAIL=... ADMIN_PASSWORD=... npm run seed:admin`
+  (una sola vez, local o contra producción).
+- Los 4 participantes de prueba que carga `npm run seed` (Marina, Lucas,
+  Valentina, Sofía) **no tienen cuenta de login** — son solo fichas de
+  salud para probar la búsqueda del rescatista, no se puede loguear "como"
+  ellos.
+
+**Sesión larga a propósito**: la cookie de sesión dura **60 días** para
+los tres roles. Fue un pedido explícito: un rescatista tiene que poder
+actuar de inmediato ante una emergencia, sin perder tiempo re-logueándose.
+
+**Un bug real que apareció y se resolvió durante esta etapa** (vale la
+pena recordarlo si en el futuro aparecen errores raros de "permiso
+denegado" en Supabase): el cliente de Supabase compartido
+(`src/db/connection.js`, usado con la service role key para casi todo el
+backend) **no se puede usar también para `auth.signInWithPassword`**.
+Ese método pisa la sesión interna del cliente que lo llama; si se llama
+sobre el cliente compartido, después de un login cualquiera, el servidor
+entero queda actuando con los permisos limitados de ESE usuario logueado
+en vez de con permisos de servidor — silenciosamente, hasta que algo
+protegido por RLS empieza a fallar. Se resolvió armando un cliente
+descartable y de un solo uso solo para verificar contraseñas
+(`src/db/authClient.js`), que nunca toca el cliente compartido.
+
+**Archivos nuevos**: `src/db/migrations/0004_profiles.sql`,
+`src/models/profile.model.js`, `src/utils/session.js` (cookie de sesión
+firmada a mano con `node:crypto`, sin sumar dependencias como
+`jsonwebtoken` o `cookie-parser`), `src/middleware/auth.middleware.js`,
+`src/controllers/auth.controller.js`, `src/routes/auth.routes.js`,
+`src/db/authClient.js`, `src/db/seedAdmin.js`, `public/js/login.js`,
+`public/js/logout.js`.
+
+**Probado de punta a punta en local contra Supabase real** (no solo
+lectura de código): registro de participante, login con DNI+contraseña,
+contraseña incorrecta rechazada con mensaje genérico, perfil propio
+visible solo con sesión (401 sin ella), admin crea rescatista, rescatista
+logueado busca por DNI, página `/admin` redirige a un rescatista que
+intenta entrar (a su propia home, no a un error crudo), y — clave — que
+el cliente compartido de Supabase siga funcionando con permisos de
+servidor después de que alguien se loguee (ahí es donde estaba el bug de
+`authClient.js`). Los datos de prueba usados para esto ya se borraron de
+la base real.
+
+**Pendiente / no incluido en esta etapa** (para no sobre-alcanzar el
+pedido original):
+- No hay pantalla de "olvidé mi contraseña" (Supabase Auth la trae
+  incorporada, pero no se conectó ninguna vista para eso).
+- No hay UI para que un admin cambie el rol de alguien o borre una cuenta
+  una vez creada (solo alta, vía `POST /api/admin/users`).
+- El botón "Escanear QR" desde el navegador (`/rescatista`) sigue
+  dependiendo de `BarcodeDetector`, que no anda en desktop ni en todos los
+  celulares — el camino recomendado y ya probado sigue siendo abrir el QR
+  con la cámara nativa del teléfono, no el botón de la web (ver sección
+  16).

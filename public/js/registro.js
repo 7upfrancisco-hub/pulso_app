@@ -52,6 +52,8 @@
       medications: formData.get('medications').trim(),
       emergency_contact_name: formData.get('emergency_contact_name').trim(),
       emergency_contact_phone: formData.get('emergency_contact_phone').trim(),
+      email: formData.get('email').trim(),
+      password: formData.get('password'),
       declaration_accepted: true,
       declaration_version: declarationVersion,
     };
@@ -60,11 +62,11 @@
     submitBtn.textContent = 'Generando...';
 
     try {
-      const participant = await PulsoApi.post('/api/participants', payload);
-      window.location.href = `/perfil/${participant.id}`;
+      const { redirectTo } = await PulsoApi.post('/api/auth/register', payload);
+      window.location.href = redirectTo;
     } catch (err) {
       if (err.status === 409) {
-        showAlert('Ya existe un participante registrado con ese DNI.', 'error');
+        showAlert(err.message || 'Ya existe una cuenta registrada con ese DNI.', 'error');
       } else if (err.status === 400) {
         showAlert(err.message || 'Revisá los datos obligatorios.', 'error');
       } else {
