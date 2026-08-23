@@ -51,10 +51,21 @@
     content.innerHTML = `
       <h1>Editar mi perfil</h1>
 
-      <p class="hint">
-        <strong>${escapeHtml(participant.full_name)}</strong> — Grupo sanguíneo: ${escapeHtml(bloodType)}.
-        El nombre y el grupo sanguíneo no se editan desde acá porque no cambian; si hay un error, contactá a un admin.
-      </p>
+      <div class="card">
+        <div class="rescue-field">
+          <div class="rescue-label">Nombre</div>
+          <div class="rescue-value">${escapeHtml(participant.full_name)}</div>
+        </div>
+        <div class="rescue-field">
+          <div class="rescue-label">DNI</div>
+          <div class="rescue-value">${escapeHtml(participant.dni)}</div>
+        </div>
+        <div class="rescue-field">
+          <div class="rescue-label">Grupo sanguíneo y factor</div>
+          <div class="rescue-value">${escapeHtml(bloodType)}</div>
+        </div>
+      </div>
+      <p class="hint">Si hay un error, contactá a un admin.</p>
 
       <div id="edit-alert"></div>
 
