@@ -40,27 +40,27 @@
     document.getElementById('edit-btn').addEventListener('click', () => renderEdit(participant));
   }
 
-  // Formulario de edicion: mismos campos que /registro salvo DNI (identidad,
-  // no se edita aca) y email/contraseña (cuenta, no perfil de salud).
+  // Formulario de edicion: NO incluye nombre, DNI ni grupo sanguineo/factor
+  // Rh a proposito -- son datos que no cambian (o que si cambian, requieren
+  // mas cuidado que un campo de texto libre), a diferencia de alergias,
+  // medicacion o el contacto de emergencia, que si se actualizan con el
+  // tiempo. Para corregir esos datos fijos hay que contactar a un admin.
   function renderEdit(participant) {
+    const bloodType = participant.blood_type || 'no declarado';
+
     content.innerHTML = `
       <h1>Editar mi perfil</h1>
+
+      <p class="hint">
+        <strong>${escapeHtml(participant.full_name)}</strong> — Grupo sanguíneo: ${escapeHtml(bloodType)}.
+        El nombre y el grupo sanguíneo no se editan desde acá porque no cambian; si hay un error, contactá a un admin.
+      </p>
 
       <div id="edit-alert"></div>
 
       <form id="edit-form" class="card" novalidate>
         <fieldset>
           <legend>Datos personales</legend>
-          <div class="field-row">
-            <div class="field">
-              <label for="first_name">Nombre *</label>
-              <input type="text" id="first_name" name="first_name" required autocomplete="given-name">
-            </div>
-            <div class="field">
-              <label for="last_name">Apellido *</label>
-              <input type="text" id="last_name" name="last_name" required autocomplete="family-name">
-            </div>
-          </div>
           <div class="field">
             <label for="age">Edad *</label>
             <input type="number" id="age" name="age" required min="0" max="120">
@@ -69,26 +69,6 @@
 
         <fieldset>
           <legend>Perfil de salud (declarado por vos)</legend>
-          <div class="field-row">
-            <div class="field">
-              <label for="blood_group">Grupo sanguíneo</label>
-              <select id="blood_group" name="blood_group">
-                <option value="">No lo sé</option>
-                <option>O</option>
-                <option>A</option>
-                <option>B</option>
-                <option>AB</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="rh_factor">Factor Rh</label>
-              <select id="rh_factor" name="rh_factor">
-                <option value="">No lo sé</option>
-                <option value="+">Positivo (+)</option>
-                <option value="-">Negativo (-)</option>
-              </select>
-            </div>
-          </div>
           <div class="field">
             <label for="allergies">Alergias</label>
             <textarea id="allergies" name="allergies" placeholder="Ej: Penicilina. Dejar en blanco si no tenés."></textarea>
@@ -123,11 +103,7 @@
     const form = document.getElementById('edit-form');
     // Se asignan por .value (no interpolando en el HTML) para no tener que
     // escapar comillas dentro de texto libre como alergias/antecedentes.
-    form.elements.first_name.value = participant.first_name || '';
-    form.elements.last_name.value = participant.last_name || '';
     form.elements.age.value = participant.age ?? '';
-    form.elements.blood_group.value = participant.blood_group || '';
-    form.elements.rh_factor.value = participant.rh_factor || '';
     form.elements.allergies.value = participant.allergies || '';
     form.elements.medical_conditions.value = participant.medical_conditions || '';
     form.elements.medications.value = participant.medications || '';
@@ -145,11 +121,7 @@
 
       const formData = new FormData(form);
       const payload = {
-        first_name: formData.get('first_name').trim(),
-        last_name: formData.get('last_name').trim(),
         age: Number(formData.get('age')),
-        blood_group: formData.get('blood_group'),
-        rh_factor: formData.get('rh_factor'),
         allergies: formData.get('allergies').trim(),
         medical_conditions: formData.get('medical_conditions').trim(),
         medications: formData.get('medications').trim(),
