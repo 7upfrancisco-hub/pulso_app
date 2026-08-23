@@ -56,20 +56,44 @@
           <td>${escapeHtml(row.blood_type)}</td>
           <td>${formatDate(row.updated_at)}</td>
           <td class="table-actions">
-            <button type="button" class="btn btn-outline" data-reset-dni="${escapeHtml(row.dni)}">Cambiar contraseña</button>
-            <button type="button" class="btn btn-danger" data-delete-dni="${escapeHtml(row.dni)}">Borrar</button>
+            <div class="row-menu">
+              <button type="button" class="btn-icon" data-menu-toggle aria-haspopup="true" aria-expanded="false" aria-label="Más acciones">⋯</button>
+              <div class="row-menu-dropdown" data-menu-dropdown hidden>
+                <button type="button" data-reset-dni="${escapeHtml(row.dni)}">Cambiar contraseña</button>
+                <button type="button" class="danger" data-delete-dni="${escapeHtml(row.dni)}">Borrar</button>
+              </div>
+            </div>
           </td>
         </tr>
       `)
       .join('');
   }
 
-  // Borra la cuenta completa (perfil + login) y la ficha asociadas a ese
-  // DNI. Pensado para liberar DNIs de prueba que ya no pueden loguearse.
+  function closeAllMenus() {
+    tableBody.querySelectorAll('[data-menu-dropdown]').forEach((menu) => { menu.hidden = true; });
+    tableBody.querySelectorAll('[data-menu-toggle]').forEach((btn) => btn.setAttribute('aria-expanded', 'false'));
+  }
+
+  // El menú "⋯" agrupa las acciones de la fila (cambiar contraseña, borrar)
+  // para no llenar la tabla de botones sueltos.
   tableBody.addEventListener('click', async (event) => {
+    const toggleBtn = event.target.closest('[data-menu-toggle]');
+    if (toggleBtn) {
+      const dropdown = toggleBtn.nextElementSibling;
+      const wasOpen = !dropdown.hidden;
+      closeAllMenus();
+      if (!wasOpen) {
+        dropdown.hidden = false;
+        toggleBtn.setAttribute('aria-expanded', 'true');
+      }
+      return;
+    }
+
     const deleteBtn = event.target.closest('[data-delete-dni]');
     const resetBtn = event.target.closest('[data-reset-dni]');
     if (!deleteBtn && !resetBtn) return;
+
+    closeAllMenus();
 
     if (deleteBtn) {
       const dni = deleteBtn.dataset.deleteDni;
@@ -100,6 +124,11 @@
     } finally {
       resetBtn.disabled = false;
     }
+  });
+
+  // Cierra cualquier menú abierto al clickear afuera.
+  document.addEventListener('click', (event) => {
+    if (!event.target.closest('.row-menu')) closeAllMenus();
   });
 
   async function loadStats() {
