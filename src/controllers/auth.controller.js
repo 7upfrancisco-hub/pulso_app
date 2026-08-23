@@ -117,8 +117,20 @@ const login = asyncHandler(async (req, res) => {
   const profile = await profileModel.findByDni(dni);
   if (!profile) return genericError();
 
+  if (profile.locked_until && new Date(profile.locked_until) > new Date()) {
+    const minutesLeft = Math.ceil((new Date(profile.locked_until) - new Date()) / 60000);
+    return res.status(429).json({
+      error: `Demasiados intentos fallidos. Probá de nuevo en ${minutesLeft} minuto${minutesLeft === 1 ? '' : 's'}.`,
+    });
+  }
+
   const { error } = await createAuthCheckClient().auth.signInWithPassword({ email: profile.email, password });
-  if (error) return genericError();
+  if (error) {
+    await profileModel.registerFailedLogin(profile);
+    return genericError();
+  }
+
+  await profileModel.clearFailedLogins(profile.id);
 
   setSessionCookie(res, {
     id: profile.id,
