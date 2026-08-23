@@ -4,7 +4,10 @@
 const supabase = require('../db/connection');
 const participantModel = require('../models/participant.model');
 const profileModel = require('../models/profile.model');
+const accessLogModel = require('../models/accessLog.model');
 const asyncHandler = require('../utils/asyncHandler');
+
+const ACCESS_LOGS_LIMIT = 200;
 
 const CREATABLE_ROLES = ['rescatista', 'admin'];
 
@@ -125,4 +128,23 @@ const resetPassword = asyncHandler(async (req, res) => {
   res.status(204).send();
 });
 
-module.exports = { stats, participants, createUser, deleteAccount, resetPassword };
+// Ultimos accesos de un rescatista a un perfil (QR/DNI/Codigo PULSO), para
+// la seccion de auditoria del panel. Nunca incluye quien accedio: el
+// acceso por QR no exige login, y access_logs no guarda ese dato hoy.
+function toAccessLogRow(log) {
+  return {
+    id: log.id,
+    full_name: log.participants?.full_name,
+    dni: log.participants?.dni,
+    pulso_code: log.participants?.pulso_code,
+    access_type: log.access_type,
+    accessed_at: log.accessed_at,
+  };
+}
+
+const accessLogs = asyncHandler(async (req, res) => {
+  const logs = await accessLogModel.findRecent(ACCESS_LOGS_LIMIT);
+  res.json(logs.map(toAccessLogRow));
+});
+
+module.exports = { stats, participants, createUser, deleteAccount, resetPassword, accessLogs };

@@ -11,6 +11,7 @@ router.use(requireAuth('admin'));
 
 router.get('/stats', adminController.stats);
 router.get('/participants', adminController.participants);
+router.get('/access-logs', adminController.accessLogs);
 
 // Crea cuentas de RESCATISTA o ADMIN. No hay auto-registro para estos
 // roles: los otorga un admin ya existente, porque implican acceso a datos

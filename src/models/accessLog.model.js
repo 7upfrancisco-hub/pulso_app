@@ -25,4 +25,17 @@ async function findByParticipant(participantId) {
   return data;
 }
 
-module.exports = { record, findByParticipant };
+// Para el panel de admin: los accesos mas recientes de cualquier
+// participante, con el nombre/DNI/Codigo PULSO ya resueltos (join por la
+// relacion declarada en la FK) para no tener que pedirlos aparte.
+async function findRecent(limit) {
+  const { data, error } = await supabase
+    .from('access_logs')
+    .select('id, access_type, accessed_at, participants(full_name, dni, pulso_code)')
+    .order('accessed_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data;
+}
+
+module.exports = { record, findByParticipant, findRecent };

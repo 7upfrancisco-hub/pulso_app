@@ -75,6 +75,29 @@
       </div>
       <button type="submit" class="btn btn-primary">Crear cuenta</button>
     </form>
+
+    <h2 class="mt-16">Registro de accesos</h2>
+    <p class="muted">
+      Cada vez que un rescatista consulta a un participante (QR, DNI o Código PULSO) queda
+      auditado acá. No muestra quién consultó: el acceso por QR no exige login.
+    </p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>DNI</th>
+            <th>Código PULSO</th>
+            <th>Vía</th>
+            <th>Fecha</th>
+          </tr>
+        </thead>
+        <tbody id="access-log-body">
+          <tr><td colspan="5">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
   </main>
 
   <script src="/js/api.js"></script>

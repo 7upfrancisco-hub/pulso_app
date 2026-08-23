@@ -7,7 +7,10 @@
   const tableBody = document.getElementById('table-body');
   const userForm = document.getElementById('user-form');
   const userFormAlert = document.getElementById('user-form-alert');
+  const accessLogBody = document.getElementById('access-log-body');
   let searchTimer = null;
+
+  const ACCESS_TYPE_LABELS = { QR: 'QR', DNI: 'DNI', CODIGO_PULSO: 'Código PULSO' };
 
   function escapeHtml(value) {
     const div = document.createElement('div');
@@ -15,10 +18,15 @@
     return div.innerHTML;
   }
 
-  function formatDate(sqliteDatetime) {
-    if (!sqliteDatetime) return '—';
-    const date = new Date(`${sqliteDatetime.replace(' ', 'T')}Z`);
-    if (Number.isNaN(date.getTime())) return sqliteDatetime;
+  // Supabase/Postgres ya devuelve ISO 8601 con offset (ej:
+  // "2026-08-20T22:00:19.49+00:00"), que Date() parsea directo. Antes esta
+  // funcion asumia el formato viejo de SQLite ("YYYY-MM-DD HH:MM:SS") y
+  // le pegaba una "Z" al final, lo que rompia el parseo silenciosamente
+  // (Date invalido) y mostraba la fecha cruda sin formatear en la tabla.
+  function formatDate(isoDatetime) {
+    if (!isoDatetime) return '—';
+    const date = new Date(isoDatetime);
+    if (Number.isNaN(date.getTime())) return isoDatetime;
     return date.toLocaleString('es-AR');
   }
 
@@ -131,6 +139,34 @@
     if (!event.target.closest('.row-menu')) closeAllMenus();
   });
 
+  function renderAccessLogs(rows) {
+    if (rows.length === 0) {
+      accessLogBody.innerHTML = '<tr><td colspan="5">Todavía no hay accesos registrados.</td></tr>';
+      return;
+    }
+
+    accessLogBody.innerHTML = rows
+      .map((row) => `
+        <tr>
+          <td>${escapeHtml(row.full_name)}</td>
+          <td>${escapeHtml(row.dni)}</td>
+          <td>${escapeHtml(row.pulso_code)}</td>
+          <td>${escapeHtml(ACCESS_TYPE_LABELS[row.access_type] || row.access_type)}</td>
+          <td>${formatDate(row.accessed_at)}</td>
+        </tr>
+      `)
+      .join('');
+  }
+
+  async function loadAccessLogs() {
+    try {
+      const rows = await PulsoApi.get('/api/admin/access-logs');
+      renderAccessLogs(rows);
+    } catch (err) {
+      accessLogBody.innerHTML = '<tr><td colspan="5">No se pudo cargar el registro de accesos.</td></tr>';
+    }
+  }
+
   async function loadStats() {
     try {
       const stats = await PulsoApi.get('/api/admin/stats');
@@ -179,4 +215,5 @@
 
   loadStats();
   loadTable('');
+  loadAccessLogs();
 })();
