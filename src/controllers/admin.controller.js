@@ -72,4 +72,57 @@ const createUser = asyncHandler(async (req, res) => {
   }
 });
 
-module.exports = { stats, participants, createUser };
+// Borra una cuenta completa (perfil + login en Supabase Auth) y, si tenia
+// ficha de participante asociada, tambien la ficha. Se busca por DNI porque
+// es el dato visible en la tabla del dashboard y el que usa el login.
+// Sirve tanto para limpiar cuentas de prueba (participante/rescatista/admin)
+// como fichas de participante sueltas sin cuenta (por ejemplo, las de
+// `npm run seed`), que tambien bloquean el DNI al registrarse.
+const deleteAccount = asyncHandler(async (req, res) => {
+  const dni = req.params.dni;
+  const profile = await profileModel.findByDni(dni);
+  const participant = await participantModel.findByDni(dni);
+
+  if (!profile && !participant) {
+    return res.status(404).json({ error: 'No existe ninguna cuenta ni ficha con ese DNI' });
+  }
+  if (profile && profile.id === req.user.id) {
+    return res.status(400).json({ error: 'No podés borrar tu propia cuenta' });
+  }
+
+  if (profile) {
+    const { error } = await supabase.auth.admin.deleteUser(profile.id);
+    if (error) throw error;
+  }
+
+  const participantId = (profile && profile.participant_id) || (participant && participant.id);
+  if (participantId) {
+    await participantModel.remove(participantId);
+  }
+
+  res.status(204).send();
+});
+
+// Restablece la contraseña de una cuenta directamente (Admin API), sin el
+// mail de recuperación: para cuando alguien se olvidó la contraseña y no
+// tiene acceso a ese email, o para ahorrarle el paso a un rescatista.
+const resetPassword = asyncHandler(async (req, res) => {
+  const dni = req.params.dni;
+  const { password } = req.body;
+
+  if (!password || String(password).length < 6) {
+    return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+  }
+
+  const profile = await profileModel.findByDni(dni);
+  if (!profile) {
+    return res.status(404).json({ error: 'No existe ninguna cuenta con ese DNI' });
+  }
+
+  const { error } = await supabase.auth.admin.updateUserById(profile.id, { password });
+  if (error) throw error;
+
+  res.status(204).send();
+});
+
+module.exports = { stats, participants, createUser, deleteAccount, resetPassword };

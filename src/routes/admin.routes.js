@@ -17,4 +17,13 @@ router.get('/participants', adminController.participants);
 // de salud de cualquier participante.
 router.post('/users', adminController.createUser);
 
+// Borra una cuenta completa (perfil + login) y su ficha de participante si
+// tenia, buscando por DNI. Uso principal: liberar DNIs de prueba que hoy
+// bloquean el registro/login real.
+router.delete('/accounts/:dni', adminController.deleteAccount);
+
+// Restablece la contraseña de una cuenta (participante/rescatista/admin)
+// sin pasar por el mail de recuperación.
+router.put('/accounts/:dni/password', adminController.resetPassword);
+
 module.exports = router;

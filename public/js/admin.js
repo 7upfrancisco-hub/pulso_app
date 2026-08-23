@@ -43,7 +43,7 @@
 
   function renderTable(rows) {
     if (rows.length === 0) {
-      tableBody.innerHTML = '<tr><td colspan="5">Sin resultados.</td></tr>';
+      tableBody.innerHTML = '<tr><td colspan="6">Sin resultados.</td></tr>';
       return;
     }
 
@@ -55,10 +55,52 @@
           <td>${escapeHtml(row.pulso_code)}</td>
           <td>${escapeHtml(row.blood_type)}</td>
           <td>${formatDate(row.updated_at)}</td>
+          <td class="table-actions">
+            <button type="button" class="btn btn-outline" data-reset-dni="${escapeHtml(row.dni)}">Cambiar contraseña</button>
+            <button type="button" class="btn btn-danger" data-delete-dni="${escapeHtml(row.dni)}">Borrar</button>
+          </td>
         </tr>
       `)
       .join('');
   }
+
+  // Borra la cuenta completa (perfil + login) y la ficha asociadas a ese
+  // DNI. Pensado para liberar DNIs de prueba que ya no pueden loguearse.
+  tableBody.addEventListener('click', async (event) => {
+    const deleteBtn = event.target.closest('[data-delete-dni]');
+    const resetBtn = event.target.closest('[data-reset-dni]');
+    if (!deleteBtn && !resetBtn) return;
+
+    if (deleteBtn) {
+      const dni = deleteBtn.dataset.deleteDni;
+      if (!confirm(`¿Borrar definitivamente la cuenta y la ficha del DNI ${dni}? Esta acción no se puede deshacer.`)) {
+        return;
+      }
+      deleteBtn.disabled = true;
+      try {
+        await PulsoApi.delete(`/api/admin/accounts/${encodeURIComponent(dni)}`);
+        await Promise.all([loadStats(), loadTable(searchInput.value.trim())]);
+      } catch (err) {
+        alert(err.message || 'No se pudo borrar.');
+        deleteBtn.disabled = false;
+      }
+      return;
+    }
+
+    const dni = resetBtn.dataset.resetDni;
+    const password = prompt(`Nueva contraseña para el DNI ${dni} (mínimo 6 caracteres):`);
+    if (!password) return;
+
+    resetBtn.disabled = true;
+    try {
+      await PulsoApi.put(`/api/admin/accounts/${encodeURIComponent(dni)}/password`, { password });
+      alert('Contraseña actualizada.');
+    } catch (err) {
+      alert(err.message || 'No se pudo cambiar la contraseña.');
+    } finally {
+      resetBtn.disabled = false;
+    }
+  });
 
   async function loadStats() {
     try {
@@ -70,13 +112,13 @@
   }
 
   async function loadTable(term) {
-    tableBody.innerHTML = '<tr><td colspan="5">Buscando…</td></tr>';
+    tableBody.innerHTML = '<tr><td colspan="6">Buscando…</td></tr>';
     try {
       const query = term ? `?search=${encodeURIComponent(term)}` : '';
       const rows = await PulsoApi.get(`/api/admin/participants${query}`);
       renderTable(rows);
     } catch (err) {
-      tableBody.innerHTML = '<tr><td colspan="5">No se pudo cargar el listado.</td></tr>';
+      tableBody.innerHTML = '<tr><td colspan="6">No se pudo cargar el listado.</td></tr>';
     }
   }
 

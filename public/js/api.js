@@ -32,4 +32,12 @@ const PulsoApi = {
   post(path, data) {
     return this.request(path, { method: 'POST', body: JSON.stringify(data) });
   },
+
+  put(path, data) {
+    return this.request(path, { method: 'PUT', body: JSON.stringify(data) });
+  },
+
+  delete(path) {
+    return this.request(path, { method: 'DELETE' });
+  },
 };

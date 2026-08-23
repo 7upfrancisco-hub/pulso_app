@@ -245,6 +245,32 @@ fieldset legend {
   margin-top: 10px;
 }
 
+.btn-danger {
+  width: auto;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  background: transparent;
+  color: var(--pulso-red);
+  border: 1.5px solid var(--pulso-red);
+}
+
+.btn-danger:hover { background: var(--pulso-red); color: var(--pulso-white); }
+.btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.table-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.table-actions .btn-outline {
+  width: auto;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
 /* Alerts / status */
 
 .alert {
