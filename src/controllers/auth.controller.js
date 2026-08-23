@@ -11,6 +11,7 @@ const profileModel = require('../models/profile.model');
 const { DECLARATION_VERSION } = require('../config/declaration');
 const { setSessionCookie, clearSessionCookie } = require('../utils/session');
 const asyncHandler = require('../utils/asyncHandler');
+const env = require('../config/env');
 
 const REQUIRED_FIELDS = [
   'first_name', 'last_name', 'dni', 'age',
@@ -129,9 +130,55 @@ const login = asyncHandler(async (req, res) => {
   res.json({ role: profile.role, redirectTo: redirectFor(profile) });
 });
 
+// Paso 1 de "olvidé mi contraseña": DNI -> resuelve el email y le pide a
+// Supabase Auth que mande el mail de recuperación (misma via que ya usa
+// createUser: Supabase se encarga del template y del envío). Responde igual
+// exista o no el DNI, para no dejar adivinar que DNIs están registrados.
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { dni } = req.body;
+  if (!dni) {
+    return res.status(400).json({ error: 'Falta el DNI' });
+  }
+
+  const profile = await profileModel.findByDni(dni);
+  if (profile) {
+    const { error } = await createAuthCheckClient().auth.resetPasswordForEmail(profile.email, {
+      redirectTo: `${env.publicBaseUrl}/reset-password`,
+    });
+    if (error) throw error;
+  }
+
+  res.json({ message: 'Si el DNI está registrado, te enviamos un email para restablecer tu contraseña.' });
+});
+
+// Paso 2: la pantalla /reset-password extrae el access_token que Supabase
+// puso en el hash del link del mail (#access_token=...&type=recovery) y lo
+// manda acá junto con la contraseña nueva. Se valida el token contra
+// Supabase Auth (sin tocar el cliente compartido) y, si es válido, se pisa
+// la contraseña vía Admin API — no hace falta abrir sesión para esto.
+const resetPassword = asyncHandler(async (req, res) => {
+  const { access_token: accessToken, password } = req.body;
+  if (!accessToken || !password) {
+    return res.status(400).json({ error: 'Faltan el token o la contraseña nueva' });
+  }
+  if (String(password).length < 6) {
+    return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+  }
+
+  const { data, error } = await createAuthCheckClient().auth.getUser(accessToken);
+  if (error || !data.user) {
+    return res.status(400).json({ error: 'El enlace no es válido o ya venció. Pedí uno nuevo.' });
+  }
+
+  const { error: updateError } = await supabase.auth.admin.updateUserById(data.user.id, { password });
+  if (updateError) throw updateError;
+
+  res.json({ message: 'Contraseña actualizada. Ya podés iniciar sesión.' });
+});
+
 const logout = (req, res) => {
   clearSessionCookie(res);
   res.status(204).send();
 };
 
-module.exports = { register, login, logout };
+module.exports = { register, login, logout, forgotPassword, resetPassword };

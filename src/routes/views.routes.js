@@ -20,6 +20,8 @@ const page = (file) => (req, res) => res.sendFile(path.join(PAGES_DIR, file));
 // pantalla de login desde esta etapa).
 router.get('/login', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'index.html')));
 router.get('/registro', page('registro.html'));
+router.get('/forgot-password', page('forgot-password.html'));
+router.get('/reset-password', page('reset-password.html'));
 router.get('/r/:id', page('rescate.html'));
 
 // Protegidas por rol. El propio /perfil/:id no valida que el :id coincida
