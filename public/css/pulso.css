@@ -558,6 +558,13 @@ tbody tr:hover { background: var(--pulso-gray-050); }
 
 /* Credenciales imprimibles (/admin/credentials) */
 
+.credentials-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
 .credentials-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -571,6 +578,20 @@ tbody tr:hover { background: var(--pulso-gray-050); }
   padding: 16px;
   text-align: center;
   background: var(--pulso-white);
+}
+
+.credential-card.filter-hidden { display: none; }
+
+.credential-card.unselected { opacity: 0.4; }
+
+.credential-select {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
 }
 
 .credential-card img {
@@ -606,4 +627,9 @@ tbody tr:hover { background: var(--pulso-gray-050); }
     break-inside: avoid;
     box-shadow: none;
   }
+
+  /* Al imprimir importa lo tildado, no lo que esté filtrado en pantalla. */
+  .credential-card.filter-hidden { display: block; }
+
+  .credential-card.unselected { display: none; }
 }
