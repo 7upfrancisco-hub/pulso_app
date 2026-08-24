@@ -34,12 +34,15 @@
   }
 
   // Menu "⋯" con Cambiar contraseña/Borrar, compartido por las tres tablas
-  // de cuentas (participantes, rescatistas, admins).
-  function rowMenuHtml(dni) {
+  // de cuentas (participantes, rescatistas, admins). `extraHtml` permite
+  // sumar botones propios de una tabla (ej: "Corregir nombre/grupo" solo
+  // tiene sentido para participantes).
+  function rowMenuHtml(dni, extraHtml = '') {
     return `
       <div class="row-menu">
         <button type="button" class="btn-icon" data-menu-toggle aria-haspopup="true" aria-expanded="false" aria-label="Más acciones">⋯</button>
         <div class="row-menu-dropdown" data-menu-dropdown hidden>
+          ${extraHtml}
           <button type="button" data-reset-dni="${escapeHtml(dni)}">Cambiar contraseña</button>
           <button type="button" class="danger" data-delete-dni="${escapeHtml(dni)}">Borrar</button>
         </div>
@@ -54,8 +57,10 @@
 
   // Conecta el menu de acciones de una tabla: `onChange` se llama despues de
   // borrar o cambiar una contraseña, para que cada tabla se refresque a su
-  // manera (la de participantes tambien actualiza las metricas).
-  function bindRowActions(tbody, onChange) {
+  // manera (la de participantes tambien actualiza las metricas). `onEdit`
+  // es opcional: solo la tabla de participantes la usa (para "Corregir
+  // nombre/grupo").
+  function bindRowActions(tbody, onChange, onEdit) {
     tbody.addEventListener('click', async (event) => {
       const toggleBtn = event.target.closest('[data-menu-toggle]');
       if (toggleBtn) {
@@ -66,6 +71,13 @@
           dropdown.hidden = false;
           toggleBtn.setAttribute('aria-expanded', 'true');
         }
+        return;
+      }
+
+      const editBtn = event.target.closest('[data-edit-id]');
+      if (editBtn) {
+        closeAllMenus();
+        await onEdit(editBtn.dataset.editId);
         return;
       }
 
@@ -145,10 +157,63 @@
           <td>${escapeHtml(row.pulso_code)}</td>
           <td>${escapeHtml(row.blood_type)}</td>
           <td>${formatDate(row.updated_at)}</td>
-          <td class="table-actions">${rowMenuHtml(row.dni)}</td>
+          <td class="table-actions">${rowMenuHtml(row.dni, `<button type="button" data-edit-id="${escapeHtml(row.id)}">Corregir nombre/grupo</button>`)}</td>
         </tr>
       `)
       .join('');
+  }
+
+  const BLOOD_GROUPS = ['', 'O', 'A', 'B', 'AB'];
+  const RH_FACTORS = ['', '+', '-'];
+
+  // Nombre y grupo sanguineo/factor Rh quedaron afuera de la autoedicion
+  // del participante (public/js/perfil.js) a proposito, porque son datos
+  // que no deberian cambiar por accidente. Esta es la unica via para
+  // corregir un error real en esos campos: una secuencia de prompts (igual
+  // que "Cambiar contraseña"), no un formulario aparte, para no sumar un
+  // componente de UI nuevo por una accion que un admin usa rara vez.
+  async function handleEditParticipant(id) {
+    let participant;
+    try {
+      participant = await PulsoApi.get(`/api/participants/${id}`);
+    } catch (err) {
+      alert(err.message || 'No se pudo cargar el participante.');
+      return;
+    }
+
+    const firstName = prompt('Nombre:', participant.first_name || '');
+    if (firstName === null) return;
+    if (!firstName.trim()) return alert('El nombre no puede quedar vacío.');
+
+    const lastName = prompt('Apellido:', participant.last_name || '');
+    if (lastName === null) return;
+    if (!lastName.trim()) return alert('El apellido no puede quedar vacío.');
+
+    const bloodGroupInput = prompt('Grupo sanguíneo (O, A, B, AB, o vacío si no se sabe):', participant.blood_group || '');
+    if (bloodGroupInput === null) return;
+    const bloodGroup = bloodGroupInput.trim().toUpperCase();
+    if (!BLOOD_GROUPS.includes(bloodGroup)) {
+      return alert('Grupo sanguíneo inválido. Tiene que ser O, A, B, AB o vacío.');
+    }
+
+    const rhInput = prompt('Factor Rh (+, -, o vacío si no se sabe):', participant.rh_factor || '');
+    if (rhInput === null) return;
+    const rhFactor = rhInput.trim();
+    if (!RH_FACTORS.includes(rhFactor)) {
+      return alert('Factor Rh inválido. Tiene que ser +, - o vacío.');
+    }
+
+    try {
+      await PulsoApi.put(`/api/participants/${id}`, {
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        blood_group: bloodGroup,
+        rh_factor: rhFactor,
+      });
+      await loadTable(searchInput.value.trim());
+    } catch (err) {
+      alert(err.message || 'No se pudieron guardar los cambios.');
+    }
   }
 
   // Tabla de cuentas de Rescatista/Admin: no tienen ficha de participante,
@@ -229,7 +294,7 @@
     }
   }
 
-  bindRowActions(tableBody, () => Promise.all([loadStats(), loadTable(searchInput.value.trim())]));
+  bindRowActions(tableBody, () => Promise.all([loadStats(), loadTable(searchInput.value.trim())]), handleEditParticipant);
   bindRowActions(rescatistaBody, () => loadAccounts('rescatista', rescatistaBody));
   bindRowActions(adminBody, () => loadAccounts('admin', adminBody));
 
