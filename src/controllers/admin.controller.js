@@ -5,6 +5,7 @@ const supabase = require('../db/connection');
 const participantModel = require('../models/participant.model');
 const profileModel = require('../models/profile.model');
 const accessLogModel = require('../models/accessLog.model');
+const { generateQrDataUrl } = require('../utils/qr');
 const asyncHandler = require('../utils/asyncHandler');
 
 const ACCESS_LOGS_LIMIT = 200;
@@ -157,4 +158,21 @@ const accessLogs = asyncHandler(async (req, res) => {
   res.json(logs.map(toAccessLogRow));
 });
 
-module.exports = { stats, participants, accountsByRole, createUser, deleteAccount, resetPassword, accessLogs };
+// Para la hoja de credenciales imprimibles: nombre + Codigo PULSO + QR de
+// todos los participantes de una. Nunca datos de salud (igual criterio que
+// el QR: un papel impreso se puede perder, asi que no lleva nada sensible,
+// solo lo necesario para que un rescatista escanee o tipee el codigo).
+const credentials = asyncHandler(async (req, res) => {
+  const rows = await participantModel.findAll();
+  const withQr = await Promise.all(
+    rows.map(async (participant) => {
+      const { dataUrl } = await generateQrDataUrl(participant.id);
+      return { full_name: participant.full_name, pulso_code: participant.pulso_code, qr: dataUrl };
+    })
+  );
+  res.json(withQr);
+});
+
+module.exports = {
+  stats, participants, accountsByRole, createUser, deleteAccount, resetPassword, accessLogs, credentials,
+};

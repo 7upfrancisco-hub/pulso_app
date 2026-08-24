@@ -47,5 +47,6 @@ router.get('/r/:id', page('rescate.html'));
 router.get('/perfil/:id', requirePage('participante', 'admin'), page('perfil.html'));
 router.get('/rescatista', requirePage('rescatista', 'admin'), page('rescatista.html'));
 router.get('/admin', requirePage('admin'), page('admin.html'));
+router.get('/admin/credentials', requirePage('admin'), page('credentials.html'));
 
 module.exports = router;

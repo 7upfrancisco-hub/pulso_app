@@ -13,6 +13,10 @@ router.get('/stats', adminController.stats);
 router.get('/participants', adminController.participants);
 router.get('/access-logs', adminController.accessLogs);
 
+// Nombre + Codigo PULSO + QR de todos los participantes, para la hoja de
+// credenciales imprimibles.
+router.get('/credentials', adminController.credentials);
+
 // Cuentas de Rescatista/Admin (?role=rescatista | ?role=admin): no tienen
 // ficha de participante, por eso no salen en /participants.
 router.get('/accounts', adminController.accountsByRole);

@@ -245,6 +245,11 @@ fieldset legend {
   margin-top: 10px;
 }
 
+.btn-inline {
+  width: auto;
+  display: inline-flex;
+}
+
 .table-actions {
   text-align: right;
 }
@@ -550,3 +555,55 @@ tbody tr:hover { background: var(--pulso-gray-050); }
 .muted { color: var(--pulso-gray-600); }
 .mt-16 { margin-top: 16px; }
 .mb-0 { margin-bottom: 0; }
+
+/* Credenciales imprimibles (/admin/credentials) */
+
+.credentials-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.credential-card {
+  border: 1.5px dashed var(--pulso-gray-300);
+  border-radius: var(--pulso-radius);
+  padding: 16px;
+  text-align: center;
+  background: var(--pulso-white);
+}
+
+.credential-card img {
+  width: 100%;
+  max-width: 180px;
+  height: auto;
+}
+
+.credential-name {
+  margin-top: 8px;
+  font-weight: 800;
+}
+
+.credential-code {
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--pulso-gray-600);
+}
+
+@media print {
+  .no-print { display: none !important; }
+
+  body { background: var(--pulso-white); }
+
+  .container--wide { max-width: none; padding: 0; }
+
+  .credentials-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .credential-card {
+    break-inside: avoid;
+    box-shadow: none;
+  }
+}
