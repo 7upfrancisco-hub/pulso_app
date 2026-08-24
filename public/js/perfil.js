@@ -34,7 +34,7 @@
         Perfil de salud declarado por vos. Podés actualizarlo cuando quieras; el QR no cambia.
       </div>
 
-      <button type="button" class="btn btn-primary mt-16" id="edit-btn">Editar mi perfil</button>
+      <button type="button" class="btn btn-primary mt-16" id="edit-btn">Editar perfil</button>
     `;
 
     document.getElementById('edit-btn').addEventListener('click', () => renderEdit(participant));
@@ -49,7 +49,7 @@
     const bloodType = participant.blood_type || 'no declarado';
 
     content.innerHTML = `
-      <h1>Editar mi perfil</h1>
+      <h1>Editar perfil</h1>
 
       <div class="card">
         <div class="rescue-field">
