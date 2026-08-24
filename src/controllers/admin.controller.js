@@ -34,6 +34,16 @@ const participants = asyncHandler(async (req, res) => {
   res.json(rows.map(toTableRow));
 });
 
+// Cuentas de RESCATISTA o ADMIN para su tabla en el panel: no tienen ficha
+// de participante, asi que no aparecen en la tabla de `participants`.
+const accountsByRole = asyncHandler(async (req, res) => {
+  const role = req.query.role;
+  if (!CREATABLE_ROLES.includes(role)) {
+    return res.status(400).json({ error: `role debe ser uno de: ${CREATABLE_ROLES.join(', ')}` });
+  }
+  res.json(await profileModel.findByRole(role));
+});
+
 // Alta de una cuenta de RESCATISTA o ADMIN: crea el usuario en Supabase
 // Auth y su perfil (DNI + rol). Sin ficha de salud asociada: estos roles
 // no son un participante.
@@ -147,4 +157,4 @@ const accessLogs = asyncHandler(async (req, res) => {
   res.json(logs.map(toAccessLogRow));
 });
 
-module.exports = { stats, participants, createUser, deleteAccount, resetPassword, accessLogs };
+module.exports = { stats, participants, accountsByRole, createUser, deleteAccount, resetPassword, accessLogs };

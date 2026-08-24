@@ -1,10 +1,13 @@
 // Dashboard de ADMIN: metricas + tabla con busqueda por nombre/DNI/Codigo
-// PULSO, y alta de cuentas de Rescatista/Admin.
+// PULSO, tablas de cuentas de Rescatista/Admin, alta de esas cuentas, y
+// registro de accesos.
 
 (function () {
   const statsGrid = document.getElementById('stats-grid');
   const searchInput = document.getElementById('search-input');
   const tableBody = document.getElementById('table-body');
+  const rescatistaBody = document.getElementById('rescatista-table-body');
+  const adminBody = document.getElementById('admin-table-body');
   const userForm = document.getElementById('user-form');
   const userFormAlert = document.getElementById('user-form-alert');
   const accessLogBody = document.getElementById('access-log-body');
@@ -29,6 +32,85 @@
     if (Number.isNaN(date.getTime())) return isoDatetime;
     return date.toLocaleString('es-AR');
   }
+
+  // Menu "⋯" con Cambiar contraseña/Borrar, compartido por las tres tablas
+  // de cuentas (participantes, rescatistas, admins).
+  function rowMenuHtml(dni) {
+    return `
+      <div class="row-menu">
+        <button type="button" class="btn-icon" data-menu-toggle aria-haspopup="true" aria-expanded="false" aria-label="Más acciones">⋯</button>
+        <div class="row-menu-dropdown" data-menu-dropdown hidden>
+          <button type="button" data-reset-dni="${escapeHtml(dni)}">Cambiar contraseña</button>
+          <button type="button" class="danger" data-delete-dni="${escapeHtml(dni)}">Borrar</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function closeAllMenus() {
+    document.querySelectorAll('[data-menu-dropdown]').forEach((menu) => { menu.hidden = true; });
+    document.querySelectorAll('[data-menu-toggle]').forEach((btn) => btn.setAttribute('aria-expanded', 'false'));
+  }
+
+  // Conecta el menu de acciones de una tabla: `onChange` se llama despues de
+  // borrar o cambiar una contraseña, para que cada tabla se refresque a su
+  // manera (la de participantes tambien actualiza las metricas).
+  function bindRowActions(tbody, onChange) {
+    tbody.addEventListener('click', async (event) => {
+      const toggleBtn = event.target.closest('[data-menu-toggle]');
+      if (toggleBtn) {
+        const dropdown = toggleBtn.nextElementSibling;
+        const wasOpen = !dropdown.hidden;
+        closeAllMenus();
+        if (!wasOpen) {
+          dropdown.hidden = false;
+          toggleBtn.setAttribute('aria-expanded', 'true');
+        }
+        return;
+      }
+
+      const deleteBtn = event.target.closest('[data-delete-dni]');
+      const resetBtn = event.target.closest('[data-reset-dni]');
+      if (!deleteBtn && !resetBtn) return;
+
+      closeAllMenus();
+
+      if (deleteBtn) {
+        const dni = deleteBtn.dataset.deleteDni;
+        if (!confirm(`¿Borrar definitivamente la cuenta y la ficha del DNI ${dni}? Esta acción no se puede deshacer.`)) {
+          return;
+        }
+        deleteBtn.disabled = true;
+        try {
+          await PulsoApi.delete(`/api/admin/accounts/${encodeURIComponent(dni)}`);
+          await onChange();
+        } catch (err) {
+          alert(err.message || 'No se pudo borrar.');
+          deleteBtn.disabled = false;
+        }
+        return;
+      }
+
+      const dni = resetBtn.dataset.resetDni;
+      const password = prompt(`Nueva contraseña para el DNI ${dni} (mínimo 6 caracteres):`);
+      if (!password) return;
+
+      resetBtn.disabled = true;
+      try {
+        await PulsoApi.put(`/api/admin/accounts/${encodeURIComponent(dni)}/password`, { password });
+        alert('Contraseña actualizada.');
+      } catch (err) {
+        alert(err.message || 'No se pudo cambiar la contraseña.');
+      } finally {
+        resetBtn.disabled = false;
+      }
+    });
+  }
+
+  // Cierra cualquier menú abierto al clickear afuera.
+  document.addEventListener('click', (event) => {
+    if (!event.target.closest('.row-menu')) closeAllMenus();
+  });
 
   function renderStats(stats) {
     const tiles = [
@@ -63,81 +145,31 @@
           <td>${escapeHtml(row.pulso_code)}</td>
           <td>${escapeHtml(row.blood_type)}</td>
           <td>${formatDate(row.updated_at)}</td>
-          <td class="table-actions">
-            <div class="row-menu">
-              <button type="button" class="btn-icon" data-menu-toggle aria-haspopup="true" aria-expanded="false" aria-label="Más acciones">⋯</button>
-              <div class="row-menu-dropdown" data-menu-dropdown hidden>
-                <button type="button" data-reset-dni="${escapeHtml(row.dni)}">Cambiar contraseña</button>
-                <button type="button" class="danger" data-delete-dni="${escapeHtml(row.dni)}">Borrar</button>
-              </div>
-            </div>
-          </td>
+          <td class="table-actions">${rowMenuHtml(row.dni)}</td>
         </tr>
       `)
       .join('');
   }
 
-  function closeAllMenus() {
-    tableBody.querySelectorAll('[data-menu-dropdown]').forEach((menu) => { menu.hidden = true; });
-    tableBody.querySelectorAll('[data-menu-toggle]').forEach((btn) => btn.setAttribute('aria-expanded', 'false'));
+  // Tabla de cuentas de Rescatista/Admin: no tienen ficha de participante,
+  // asi que solo se muestra DNI/Email/Alta (no hay nombre en `profiles`).
+  function renderAccountsTable(tbody, rows) {
+    if (rows.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4">Sin cuentas todavía.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = rows
+      .map((row) => `
+        <tr>
+          <td>${escapeHtml(row.dni)}</td>
+          <td>${escapeHtml(row.email)}</td>
+          <td>${formatDate(row.created_at)}</td>
+          <td class="table-actions">${rowMenuHtml(row.dni)}</td>
+        </tr>
+      `)
+      .join('');
   }
-
-  // El menú "⋯" agrupa las acciones de la fila (cambiar contraseña, borrar)
-  // para no llenar la tabla de botones sueltos.
-  tableBody.addEventListener('click', async (event) => {
-    const toggleBtn = event.target.closest('[data-menu-toggle]');
-    if (toggleBtn) {
-      const dropdown = toggleBtn.nextElementSibling;
-      const wasOpen = !dropdown.hidden;
-      closeAllMenus();
-      if (!wasOpen) {
-        dropdown.hidden = false;
-        toggleBtn.setAttribute('aria-expanded', 'true');
-      }
-      return;
-    }
-
-    const deleteBtn = event.target.closest('[data-delete-dni]');
-    const resetBtn = event.target.closest('[data-reset-dni]');
-    if (!deleteBtn && !resetBtn) return;
-
-    closeAllMenus();
-
-    if (deleteBtn) {
-      const dni = deleteBtn.dataset.deleteDni;
-      if (!confirm(`¿Borrar definitivamente la cuenta y la ficha del DNI ${dni}? Esta acción no se puede deshacer.`)) {
-        return;
-      }
-      deleteBtn.disabled = true;
-      try {
-        await PulsoApi.delete(`/api/admin/accounts/${encodeURIComponent(dni)}`);
-        await Promise.all([loadStats(), loadTable(searchInput.value.trim())]);
-      } catch (err) {
-        alert(err.message || 'No se pudo borrar.');
-        deleteBtn.disabled = false;
-      }
-      return;
-    }
-
-    const dni = resetBtn.dataset.resetDni;
-    const password = prompt(`Nueva contraseña para el DNI ${dni} (mínimo 6 caracteres):`);
-    if (!password) return;
-
-    resetBtn.disabled = true;
-    try {
-      await PulsoApi.put(`/api/admin/accounts/${encodeURIComponent(dni)}/password`, { password });
-      alert('Contraseña actualizada.');
-    } catch (err) {
-      alert(err.message || 'No se pudo cambiar la contraseña.');
-    } finally {
-      resetBtn.disabled = false;
-    }
-  });
-
-  // Cierra cualquier menú abierto al clickear afuera.
-  document.addEventListener('click', (event) => {
-    if (!event.target.closest('.row-menu')) closeAllMenus();
-  });
 
   function renderAccessLogs(rows) {
     if (rows.length === 0) {
@@ -187,6 +219,20 @@
     }
   }
 
+  async function loadAccounts(role, tbody) {
+    tbody.innerHTML = '<tr><td colspan="4">Cargando…</td></tr>';
+    try {
+      const rows = await PulsoApi.get(`/api/admin/accounts?role=${role}`);
+      renderAccountsTable(tbody, rows);
+    } catch (err) {
+      tbody.innerHTML = '<tr><td colspan="4">No se pudo cargar el listado.</td></tr>';
+    }
+  }
+
+  bindRowActions(tableBody, () => Promise.all([loadStats(), loadTable(searchInput.value.trim())]));
+  bindRowActions(rescatistaBody, () => loadAccounts('rescatista', rescatistaBody));
+  bindRowActions(adminBody, () => loadAccounts('admin', adminBody));
+
   searchInput.addEventListener('input', () => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => loadTable(searchInput.value.trim()), 250);
@@ -208,6 +254,7 @@
       await PulsoApi.post('/api/admin/users', payload);
       userFormAlert.innerHTML = '<div class="alert alert-info">Cuenta creada.</div>';
       userForm.reset();
+      await loadAccounts(payload.role, payload.role === 'admin' ? adminBody : rescatistaBody);
     } catch (err) {
       userFormAlert.innerHTML = `<div class="alert alert-error">${err.message || 'No se pudo crear la cuenta.'}</div>`;
     }
@@ -215,5 +262,7 @@
 
   loadStats();
   loadTable('');
+  loadAccounts('rescatista', rescatistaBody);
+  loadAccounts('admin', adminBody);
   loadAccessLogs();
 })();

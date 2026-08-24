@@ -32,6 +32,19 @@ async function create({ id, dni, email, role, participantId }) {
   return data;
 }
 
+// Para el panel de admin: listar las cuentas de un rol que no tiene ficha
+// de participante (rescatista/admin), asi la tabla de /admin no se limita
+// a mostrar solo participantes.
+async function findByRole(role) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('dni, email, created_at')
+    .eq('role', role)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
 async function findByDni(dni) {
   const { data, error } = await supabase
     .from('profiles')
@@ -70,4 +83,4 @@ async function clearFailedLogins(id) {
   if (error) throw error;
 }
 
-module.exports = { create, findByDni, registerFailedLogin, clearFailedLogins };
+module.exports = { create, findByDni, findByRole, registerFailedLogin, clearFailedLogins };
