@@ -152,7 +152,7 @@
     tableBody.innerHTML = rows
       .map((row) => `
         <tr>
-          <td>${escapeHtml(row.full_name)}</td>
+          <td><a href="/perfil/${escapeHtml(row.id)}">${escapeHtml(row.full_name)}</a></td>
           <td>${escapeHtml(row.dni)}</td>
           <td>${escapeHtml(row.pulso_code)}</td>
           <td>${escapeHtml(row.blood_type)}</td>
