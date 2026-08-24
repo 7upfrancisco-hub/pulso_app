@@ -59,4 +59,4 @@ function requireOwnParticipantOrAdmin(req, res, next) {
   next();
 }
 
-module.exports = { requireAuth, requirePage, requireOwnParticipantOrAdmin };
+module.exports = { requireAuth, requirePage, requireOwnParticipantOrAdmin, homeFor };

@@ -6,7 +6,8 @@
 
 const express = require('express');
 const path = require('path');
-const { requirePage } = require('../middleware/auth.middleware');
+const { requirePage, homeFor } = require('../middleware/auth.middleware');
+const { getSessionUser } = require('../utils/session');
 
 const router = express.Router();
 const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
@@ -18,7 +19,22 @@ const page = (file) => (req, res) => res.sendFile(path.join(PAGES_DIR, file));
 // QR (para que cualquiera que encuentre al participante vea su ficha sin
 // login). `/login` sirve el mismo archivo que la raiz ("/" ya es la
 // pantalla de login desde esta etapa).
-router.get('/login', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'index.html')));
+//
+// Si ya hay una sesion valida (dura 60 dias, ver session.js), no tiene
+// sentido mostrar el formulario de login de nuevo: se redirige directo a
+// la home del rol. Importante para el "Agregar a pantalla de inicio" del
+// rescatista (start_url: /rescatista) -- si cae en "/" por algun motivo,
+// no debe perder tiempo logueandose otra vez con la sesion ya activa.
+function loginOrHome(req, res) {
+  const user = getSessionUser(req);
+  if (user) {
+    return res.redirect(homeFor(user));
+  }
+  res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
+}
+
+router.get('/', loginOrHome);
+router.get('/login', loginOrHome);
 router.get('/registro', page('registro.html'));
 router.get('/forgot-password', page('forgot-password.html'));
 router.get('/reset-password', page('reset-password.html'));

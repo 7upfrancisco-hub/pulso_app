@@ -14,7 +14,11 @@ app.disable('x-powered-by');
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, '..', 'public')));
+// `index: false` porque "/" ahora la maneja viewsRoutes (chequea si ya hay
+// sesion antes de servir el login) en vez del index.html automatico de
+// express.static; el resto de los archivos estaticos (css/js/icons/etc.)
+// no se ven afectados por esta opcion.
+app.use(express.static(path.join(__dirname, '..', 'public'), { index: false }));
 
 app.use('/health', healthRoutes);
 app.use('/api/auth', authRoutes);
