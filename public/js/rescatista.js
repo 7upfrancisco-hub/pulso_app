@@ -1,7 +1,14 @@
-// Interfaz de busqueda para RESCATISTA: escaneo de QR por camara (Web API
-// nativa BarcodeDetector, sin librerias externas) y busqueda manual por
-// DNI o Codigo PULSO. Ambos caminos reusan renderRescueView (rescueView.js).
-
+// Interfaz de busqueda para RESCATISTA: escaneo de QR por camara y busqueda
+// manual por DNI o Codigo PULSO. Ambos caminos reusan renderRescueView
+// (rescueView.js).
+//
+// El escaneo decodifica cada frame con jsQR (public/js/vendor/jsQR.js,
+// libreria de terceros MIT vendorizada -- ver ese archivo). Antes usaba la
+// Web API nativa BarcodeDetector, pero esa API no existe en WebKit (Safari
+// y CUALQUIER navegador en iOS, porque todos corren sobre WebKit ahi por
+// requisito de Apple, no solo Safari) -- por eso el escaneo nunca andaba
+// desde un iPhone. jsQR decodifica a mano sobre un <canvas>, asi que solo
+// depende de getUserMedia (camara), que si esta soportado en todos lados.
 (function () {
   const searchForm = document.getElementById('search-form');
   const searchInput = document.getElementById('search-input');
@@ -10,6 +17,8 @@
   const scanStopBtn = document.getElementById('scan-stop-btn');
   const scanArea = document.getElementById('scan-area');
   const video = document.getElementById('scan-video');
+  const canvas = document.getElementById('scan-canvas');
+  const canvasCtx = canvas.getContext('2d', { willReadFrequently: true });
 
   let stream = null;
   let scanning = false;
@@ -72,38 +81,36 @@
     showError('El QR escaneado no corresponde a un participante PULSO.');
   }
 
-  async function scanLoop(detector) {
+  function scanLoop() {
     if (!scanning) return;
-    try {
-      const barcodes = await detector.detect(video);
-      if (barcodes.length > 0) {
-        const rawValue = barcodes[0].rawValue || '';
+
+    // HAVE_ENOUGH_DATA: recien ahi el video tiene un frame real para leer:
+    // dibujarlo antes deja el canvas en blanco y jsQR nunca encuentra nada.
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvasCtx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const frame = canvasCtx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = window.jsQR(frame.data, frame.width, frame.height, { inversionAttempts: 'dontInvert' });
+      if (code && code.data) {
         stopScan();
-        handleScannedValue(rawValue);
+        handleScannedValue(code.data);
         return;
       }
-    } catch (err) {
-      // frame no decodificable, seguir intentando
     }
-    requestAnimationFrame(() => scanLoop(detector));
+    requestAnimationFrame(scanLoop);
   }
 
   scanBtn.addEventListener('click', async () => {
-    if (!('BarcodeDetector' in window)) {
-      showError('Tu navegador no soporta el escaneo de QR desde la web. Usá la búsqueda manual.');
-      return;
-    }
-
     try {
       stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
       video.srcObject = stream;
       await video.play();
       scanArea.hidden = false;
       scanning = true;
-      const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
-      scanLoop(detector);
+      scanLoop();
     } catch (err) {
-      showError('No se pudo acceder a la cámara del dispositivo.');
+      showError('No se pudo acceder a la cámara del dispositivo. Revisá los permisos de cámara del navegador.');
     }
   });
 
